@@ -3,13 +3,14 @@
  * @Date: 2023-02-06 10:14:01
  * @version:
  * @LastEditors: SpenserCai
- * @LastEditTime: 2023-02-06 14:15:46
+ * @LastEditTime: 2023-02-06 14:39:26
  * @Description: file content
  */
 package lgscore
 
 import (
 	"errors"
+	"fmt"
 	"os"
 	"strings"
 
@@ -27,6 +28,11 @@ type SteamApp struct {
 	ProtonPath    string
 	ProtonVersion string
 	Game          SteamGame
+}
+
+type WineDllOverrides struct {
+	DllName string
+	Model   string
 }
 
 func (s *SteamApp) SetGameInfo(appsPath string) error {
@@ -62,6 +68,59 @@ func (s *SteamApp) SetGeProtonPath() error {
 	// 去除第二行protonVersion后面的部分
 	s.ProtonPath = strings.Split(protonPath, protonVersion)[0] + protonVersion + "/proton"
 	s.ProtonVersion = protonVersion
+	return nil
+
+}
+
+func (s *SteamApp) UpdataDllOverrides(winedllist []WineDllOverrides) error {
+	// TODO:通过修改该[Software\\Wine\\DllOverrides]下的"version"="native,builtin"来实现
+	// 读取steamApp.pfxPath+"/user.reg"文件
+	userReg, err := os.ReadFile(s.PfxPath + "/user.reg")
+	if err != nil {
+		return err
+	}
+
+	for _, dll := range winedllist {
+		// 找到[Software\\Wine\\DllOverrides]开头的行号
+		dllOverridesLine := 0
+		dllOverridesEndLine := 0
+		dllSet := "\"" + dll.DllName + "\"=\"" + dll.Model + "\""
+		dllOverridesFlag := "[Software\\\\Wine\\\\DllOverrides]"
+		for i := 0; i < len(strings.Split(string(userReg), "\n")); i++ {
+			if strings.Contains(strings.Split(string(userReg), "\n")[i], dllOverridesFlag) {
+				dllOverridesLine = i
+				break
+			}
+		}
+		// 找到[Software\\Wine\\DllOverrides]结尾的行号,结尾行没有任何内容
+		for i := dllOverridesLine + 1; i < len(strings.Split(string(userReg), "\n")); i++ {
+			if strings.Contains(strings.Split(string(userReg), "\n")[i], " ") {
+				dllOverridesEndLine = i
+				break
+			}
+		}
+		// fmt.Println(strings.Split(string(userReg), "\n")[dllOverridesLine : dllOverridesLine+50])
+		fmt.Printf("dllOverridesLine:%d dllOverridesEndLine:%d", dllOverridesLine, dllOverridesEndLine)
+		// 在dllOverridesLine和dllOverridesEndLine之间查找versionSet是否存在
+		versionSetLine := -1
+		for i := dllOverridesLine; i < dllOverridesEndLine; i++ {
+			if strings.Contains(strings.Split(string(userReg), "\n")[i], dllSet) {
+				versionSetLine = i
+				break
+			}
+		}
+		// 如果不存在则在dllOverridesEndLine之前插入versionSet
+		if versionSetLine == -1 {
+			userRegStringArray := strings.Split(string(userReg), "\n")
+			userRegStringArray = append(userRegStringArray[:dllOverridesEndLine-1], append([]string{dllSet}, userRegStringArray[dllOverridesEndLine-1:]...)...)
+			userRegString := strings.Join(userRegStringArray, "\n")
+			// 写入steamApp.pfxPath+"/user.reg.local"文件
+			err := os.WriteFile(s.PfxPath+"/user.reg", []byte(userRegString), 0644)
+			if err != nil {
+				return err
+			}
+		}
+	}
 	return nil
 
 }
