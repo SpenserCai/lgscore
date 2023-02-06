@@ -3,13 +3,15 @@
  * @Date: 2023-02-06 10:14:01
  * @version:
  * @LastEditors: SpenserCai
- * @LastEditTime: 2023-02-06 14:05:54
+ * @LastEditTime: 2023-02-06 14:15:46
  * @Description: file content
  */
 package lgscore
 
 import (
+	"errors"
 	"os"
+	"strings"
 
 	"github.com/andygrunwald/vdf"
 )
@@ -20,10 +22,11 @@ type SteamGame struct {
 }
 
 type SteamApp struct {
-	AppId      string
-	PfxPath    string
-	ProtonPath string
-	Game       SteamGame
+	AppId         string
+	PfxPath       string
+	ProtonPath    string
+	ProtonVersion string
+	Game          SteamGame
 }
 
 func (s *SteamApp) SetGameInfo(appsPath string) error {
@@ -40,6 +43,27 @@ func (s *SteamApp) SetGameInfo(appsPath string) error {
 	s.Game.GameName = v["AppState"].(map[string]interface{})["name"].(string)
 	s.Game.GameInstallPath = v["AppState"].(map[string]interface{})["installdir"].(string)
 	return nil
+}
+
+func (s *SteamApp) SetGeProtonPath() error {
+	// 判断s.PfxPath是否有值
+	if s.PfxPath == "" {
+		return errors.New("PfxPath is empty")
+	}
+	steamdataPath := strings.Split(s.PfxPath, "/pfx")[0]
+	// 读取steamdataPath+"/config_info"文件
+	configInfo, err := os.ReadFile(steamdataPath + "/config_info")
+	if err != nil {
+		return err
+	}
+	// 第一行是版本号，第二行是proton路径
+	protonVersion := strings.Split(string(configInfo), "\n")[0]
+	protonPath := strings.Split(string(configInfo), "\n")[1]
+	// 去除第二行protonVersion后面的部分
+	s.ProtonPath = strings.Split(protonPath, protonVersion)[0] + protonVersion + "/proton"
+	s.ProtonVersion = protonVersion
+	return nil
+
 }
 
 func (s *SteamApp) InitSteamApp() error {
@@ -86,6 +110,10 @@ func (s *SteamApp) InitSteamApp() error {
 						}
 					} else {
 						s.PfxPath = tmpPfxPath
+					}
+					err = s.SetGeProtonPath()
+					if err != nil {
+						return err
 					}
 					return nil
 				}
