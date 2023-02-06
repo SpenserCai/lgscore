@@ -3,7 +3,7 @@
  * @Date: 2023-02-06 10:14:01
  * @version:
  * @LastEditors: SpenserCai
- * @LastEditTime: 2023-02-06 11:07:40
+ * @LastEditTime: 2023-02-06 12:22:15
  * @Description: file content
  */
 package lgscore
@@ -42,7 +42,7 @@ func (s *SteamApp) SetGameInfo(appsPath string) error {
 	return nil
 }
 
-func (s *SteamApp) InitSteamApp(appid string) error {
+func (s *SteamApp) InitSteamApp() error {
 	for i := 0; i < len(SteamPath); i++ {
 		appPath := HomePath + "/" + SteamPath[i] + "/steamapps"
 		// 判断路径是否存在libaryfolders.vdf文件
@@ -62,7 +62,7 @@ func (s *SteamApp) InitSteamApp(appid string) error {
 			// 遍历map->libraryfolders
 			for _, value := range v["libraryfolders"].(map[string]interface{}) {
 				// 判断map的apps中是否有名为appid的键，如果存在则设置steamApp的GamePath为map的path+"/steamapps/common/"+gameName
-				if _, ok := value.(map[string]interface{})["apps"].(map[string]interface{})[appid]; ok {
+				if _, ok := value.(map[string]interface{})["apps"].(map[string]interface{})[s.AppId]; ok {
 					appsPath := value.(map[string]interface{})["path"].(string) + "/steamapps"
 					err := s.SetGameInfo(appsPath)
 					if err != nil {
@@ -74,7 +74,7 @@ func (s *SteamApp) InitSteamApp(appid string) error {
 						return err
 					}
 					s.Game.GameInstallPath = tmpGamePath
-					s.PfxPath = value.(map[string]interface{})["path"].(string) + "/steamapps/compatdata/" + appid + "/pfx"
+					s.PfxPath = value.(map[string]interface{})["path"].(string) + "/steamapps/compatdata/" + s.AppId + "/pfx"
 					return nil
 				}
 			}
