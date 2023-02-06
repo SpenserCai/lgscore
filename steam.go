@@ -3,7 +3,7 @@
  * @Date: 2023-02-06 10:14:01
  * @version:
  * @LastEditors: SpenserCai
- * @LastEditTime: 2023-02-06 12:22:15
+ * @LastEditTime: 2023-02-06 14:05:54
  * @Description: file content
  */
 package lgscore
@@ -74,7 +74,19 @@ func (s *SteamApp) InitSteamApp() error {
 						return err
 					}
 					s.Game.GameInstallPath = tmpGamePath
-					s.PfxPath = value.(map[string]interface{})["path"].(string) + "/steamapps/compatdata/" + s.AppId + "/pfx"
+					tmpPfxPath := value.(map[string]interface{})["path"].(string) + "/steamapps/compatdata/" + s.AppId + "/pfx"
+					// 判断pfxPath目录是否存在
+					if _, err := os.Stat(tmpPfxPath); err != nil {
+						for _, localPath := range SteamPath {
+							tmpPfxPath = HomePath + "/" + localPath + "/steamapps/compatdata/" + s.AppId + "/pfx"
+							if _, err := os.Stat(tmpPfxPath); err == nil {
+								s.PfxPath = tmpPfxPath
+								break
+							}
+						}
+					} else {
+						s.PfxPath = tmpPfxPath
+					}
 					return nil
 				}
 			}
